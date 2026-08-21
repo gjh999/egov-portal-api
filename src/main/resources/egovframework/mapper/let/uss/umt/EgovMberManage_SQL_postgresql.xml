@@ -1,0 +1,301 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 개정이력: 2026.06.17  구재호  Spring Boot + Thymeleaf 전환 / TB_ 표준 명명 적용 -->
+<mapper namespace="mberManageDAO">
+
+
+    <resultMap id="stplatMap" type="egovframework.let.uss.umt.service.StplatVO">
+        <result property="useStplatId" column="USE_STPLAT_ID"/>
+        <result property="useStplatCn" column="USE_STPLAT_CN"/>
+        <result property="infoProvdAgeCn" column="INFO_PROVD_AGRE_CN"/>
+    </resultMap>
+
+ <!-- 전 유형 회원(일반/기업/업무사용자) 통합 조회 (회원구분 userTy: USR01=일반, USR02=기업, USR03=업무사용자) -->
+ <sql id="mberUnionAll">
+SELECT  ESNTL_ID             AS uniqId
+      , 'USR01'              AS userTy
+      , MBER_ID              AS userId
+      , MBER_NM              AS userNm
+      , MBER_EMAIL_ADRES     AS emailAdres
+      , GROUP_ID             AS groupId
+      , MBER_STTUS           AS sttus
+      , SBSCRB_DE            AS sbscrbDe
+  FROM  TB_GNRL_MBER
+ UNION ALL
+SELECT  ESNTL_ID             AS uniqId
+      , 'USR02'              AS userTy
+      , ENTRPRS_MBER_ID      AS userId
+      , CMPNY_NM             AS userNm
+      , APPLCNT_EMAIL_ADRES  AS emailAdres
+      , GROUP_ID             AS groupId
+      , ENTRPRS_MBER_STTUS   AS sttus
+      , SBSCRB_DE            AS sbscrbDe
+  FROM  TB_ENTRPRS_MBER
+ UNION ALL
+SELECT  ESNTL_ID             AS uniqId
+      , 'USR03'              AS userTy
+      , EMPLYR_ID            AS userId
+      , USER_NM              AS userNm
+      , EMAIL_ADRES          AS emailAdres
+      , GROUP_ID             AS groupId
+      , EMPLYR_STTUS_CODE    AS sttus
+      , SBSCRB_DE            AS sbscrbDe
+  FROM  TB_EMPLYR_INFO
+ </sql>
+
+ <sql id="mberListWhere">
+ WHERE  1 = 1
+        <if test='sbscrbSttus != "0"'>
+   AND  sttus LIKE #{sbscrbSttus}
+        </if>
+        <if test='userTy != null and userTy != "" and userTy != "0"'>
+   AND  userTy = #{userTy}
+        </if>
+        <if test='searchCondition == "0"'>
+   AND  userId LIKE #{searchKeyword}
+        </if>
+        <if test='searchCondition == "1"'>
+   AND  userNm LIKE '%' || #{searchKeyword} || '%'
+        </if>
+ </sql>
+
+ <select id="selectMberList" parameterType="egovframework.let.uss.umt.service.UserDefaultVO" resultType="egovMap">
+SELECT  uniqId
+      , userTy
+      , userId
+      , userNm
+      , emailAdres
+      , groupId
+      , sttus
+      , TO_CHAR(sbscrbDe,'YYYY-MM-DD') AS sbscrbDe
+  FROM  (
+        <include refid="mberUnionAll"/>
+        ) A
+        <include refid="mberListWhere"/>
+ ORDER  BY sbscrbDe DESC
+ LIMIT  #{recordCountPerPage} OFFSET #{firstIndex}
+    </select>
+
+
+    <select id="selectMberListTotCnt" parameterType="egovframework.let.uss.umt.service.UserDefaultVO" resultType="int">
+SELECT  COUNT(1) AS totcnt
+  FROM  (
+        <include refid="mberUnionAll"/>
+        ) A
+        <include refid="mberListWhere"/>
+    </select>
+
+    <insert id="insertMber_S">
+INSERT  INTO TB_GNRL_MBER
+      ( ESNTL_ID
+      , MBER_ID
+      , MBER_NM
+      , PASSWORD
+      , PASSWORD_HINT
+      , PASSWORD_CNSR
+      , IHIDNUM
+      , SEXDSTN_CODE
+      , ZIP
+      , ADRES
+      , AREA_NO
+      , MBER_STTUS
+      , DETAIL_ADRES
+      , END_TELNO
+      , MBTLNUM
+      , GROUP_ID
+      , MBER_FXNUM
+      , MBER_EMAIL_ADRES
+      , MIDDLE_TELNO
+      , TELNO
+      , OCCP_TY
+      , SBSCRB_DE )
+VALUES  ( #{uniqId}
+        , #{mberId}
+        , #{mberNm}
+        , #{password}
+        , #{passwordHint}
+        , #{passwordCnsr}
+        , #{ihidnum}
+        , #{sexdstnCode}
+        , #{zip}
+        , #{adres}
+        , #{areaNo}
+        , #{mberSttus}
+        , #{detailAdres}
+        , #{endTelno}
+        , #{moblphonNo}
+        , #{groupId}
+        , #{mberFxnum}
+        , #{mberEmailAdres}
+        , #{middleTelno}
+        , #{telno}
+        , #{occpTy}
+        , now() )
+    </insert>
+
+    <delete id="deleteMber_S">
+DELETE
+  FROM  TB_GNRL_MBER
+ WHERE  ESNTL_ID = #{delId}
+    </delete>
+
+    <!-- 회원 승인(A→P) - 유형별 상태컬럼 정합 -->
+    <update id="approveGnrlMber_S">
+UPDATE  TB_GNRL_MBER
+   SET  MBER_STTUS = 'P'
+ WHERE  ESNTL_ID = #{uniqId}
+    </update>
+    <update id="approveEntrprsMber_S">
+UPDATE  TB_ENTRPRS_MBER
+   SET  ENTRPRS_MBER_STTUS = 'P'
+ WHERE  ESNTL_ID = #{uniqId}
+    </update>
+    <update id="approveEmplyr_S">
+UPDATE  TB_EMPLYR_INFO
+   SET  EMPLYR_STTUS_CODE = 'P'
+ WHERE  ESNTL_ID = #{uniqId}
+    </update>
+
+    <select id="selectMber_S" resultType="egovframework.let.uss.umt.service.MberManageVO">
+SELECT  ESNTL_ID           AS uniqId
+      , 'USR01'            AS userTy
+      , MBER_ID            AS mberId
+      , MBER_NM            AS mberNm
+      , PASSWORD           AS password
+      , PASSWORD_HINT      AS passwordHint
+      , PASSWORD_CNSR      AS passwordCnsr
+      , IHIDNUM            AS ihidnum
+      , SEXDSTN_CODE       AS sexdstnCode
+      , ZIP                AS zip
+      , ADRES              AS adres
+      , AREA_NO            AS areaNo
+      , MBER_STTUS         AS mberSttus
+      , DETAIL_ADRES       AS detailAdres
+      , END_TELNO          AS endTelno
+      , MBTLNUM            AS moblphonNo
+      , GROUP_ID           AS groupId
+      , MBER_FXNUM         AS mberFxnum
+      , MBER_EMAIL_ADRES   AS mberEmailAdres
+      , MIDDLE_TELNO       AS middleTelno
+      , TELNO              AS telno
+      , OCCP_TY            AS occpTy
+      , TO_CHAR(SBSCRB_DE,'YYYY-MM-DD') AS sbscrbDe
+  FROM  TB_GNRL_MBER
+ WHERE  ESNTL_ID = #{uniqId}
+    </select>
+
+    <update id="updateMber_S">
+UPDATE  TB_GNRL_MBER
+   SET  MBER_ID          = #{mberId}
+      , MBER_NM          = #{mberNm}
+      , PASSWORD_HINT    = #{passwordHint}
+      , PASSWORD_CNSR    = #{passwordCnsr}
+      , IHIDNUM          = #{ihidnum}
+      , SEXDSTN_CODE     = #{sexdstnCode}
+      , ZIP              = #{zip}
+      , ADRES            = #{adres}
+      , AREA_NO          = #{areaNo}
+      , MBER_STTUS       = #{mberSttus}
+      , DETAIL_ADRES     = #{detailAdres}
+      , END_TELNO        = #{endTelno}
+      , MBTLNUM          = #{moblphonNo}
+      , GROUP_ID         = #{groupId}
+      , MBER_FXNUM       = #{mberFxnum}
+      , MBER_EMAIL_ADRES = #{mberEmailAdres}
+      , MIDDLE_TELNO     = #{middleTelno}
+      , TELNO            = #{telno}
+      , OCCP_TY          = #{occpTy}
+ WHERE  ESNTL_ID = #{uniqId}
+    </update>
+
+    <!-- 업무사용자(USR03) 상세조회/수정 -->
+    <select id="selectEmplyr_S" resultType="egovframework.let.uss.umt.service.MberManageVO">
+SELECT  ESNTL_ID            AS uniqId
+      , 'USR03'             AS userTy
+      , EMPLYR_ID           AS mberId
+      , USER_NM             AS mberNm
+      , PASSWORD_HINT       AS passwordHint
+      , PASSWORD_CNSR       AS passwordCnsr
+      , IHIDNUM             AS ihidnum
+      , SEXDSTN_CODE        AS sexdstnCode
+      , ZIP                 AS zip
+      , HOUSE_ADRES         AS adres
+      , AREA_NO             AS areaNo
+      , EMPLYR_STTUS_CODE   AS mberSttus
+      , DETAIL_ADRES        AS detailAdres
+      , HOUSE_END_TELNO     AS endTelno
+      , MBTLNUM             AS moblphonNo
+      , GROUP_ID            AS groupId
+      , FXNUM               AS mberFxnum
+      , EMAIL_ADRES         AS mberEmailAdres
+      , HOUSE_MIDDLE_TELNO  AS middleTelno
+      , OFFM_TELNO          AS telno
+      , OCCP_TY             AS occpTy
+      , TO_CHAR(SBSCRB_DE,'YYYY-MM-DD') AS sbscrbDe
+  FROM  TB_EMPLYR_INFO
+ WHERE  ESNTL_ID = #{uniqId}
+    </select>
+
+    <update id="updateEmplyr_S" parameterType="egovframework.let.uss.umt.service.MberManageVO">
+UPDATE  TB_EMPLYR_INFO
+   SET  USER_NM           = #{mberNm}
+      , EMAIL_ADRES       = #{mberEmailAdres}
+      , EMPLYR_STTUS_CODE = #{mberSttus}
+      , OFFM_TELNO        = #{telno}
+      , MBTLNUM           = #{moblphonNo}
+      , ZIP               = #{zip}
+      , HOUSE_ADRES       = #{adres}
+      , DETAIL_ADRES      = #{detailAdres}
+      , FXNUM             = #{mberFxnum}
+      , LAST_UPDT_PNTTM   = now()
+ WHERE  ESNTL_ID = #{uniqId}
+    </update>
+
+    <!-- 유형별 가입삭제(상태 D) - 기업/업무사용자 소프트 삭제 -->
+    <update id="deleteEntrprsMber_S">
+UPDATE  TB_ENTRPRS_MBER
+   SET  ENTRPRS_MBER_STTUS = 'D'
+ WHERE  ESNTL_ID = #{uniqId}
+    </update>
+    <update id="deleteEmplyr_S">
+UPDATE  TB_EMPLYR_INFO
+   SET  EMPLYR_STTUS_CODE = 'D'
+ WHERE  ESNTL_ID = #{uniqId}
+    </update>
+
+    <select id="selectStplat_S" resultMap="stplatMap">
+SELECT  USE_STPLAT_ID
+      , USE_STPLAT_CN
+      , INFO_PROVD_AGRE_CN
+  FROM  TB_STPLAT_INFO
+ WHERE  USE_STPLAT_ID = #{stplatId}
+    </select>
+
+    <update id="updatePassword_S">
+UPDATE  TB_GNRL_MBER
+   SET  PASSWORD = #{password}
+ WHERE  ESNTL_ID = #{uniqId}
+    </update>
+
+    <select id="selectPassword_S" resultType="egovframework.let.uss.umt.service.MberManageVO">
+SELECT  PASSWORD AS password
+  FROM  TB_GNRL_MBER
+ WHERE  ESNTL_ID = #{uniqId}
+    </select>
+
+    <select id="checkIdDplct_S" resultType="int">
+SELECT  COUNT(1) AS usedCnt
+  FROM  (
+        SELECT  EMPLYR_ID       AS userId
+          FROM  TB_EMPLYR_INFO
+         UNION ALL
+        SELECT  ENTRPRS_MBER_ID AS userId
+          FROM  TB_ENTRPRS_MBER
+         UNION ALL
+        SELECT  MBER_ID         AS userId
+          FROM  TB_GNRL_MBER
+        ) A
+ WHERE  userId = #{checkId}
+    </select>
+</mapper>
