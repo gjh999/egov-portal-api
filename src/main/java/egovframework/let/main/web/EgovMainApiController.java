@@ -52,6 +52,9 @@ public class EgovMainApiController {
 	@Value("${portal.main.noticeBbsId:BBSMSTR_AAAAAAAAAAAA}")
 	private String noticeBbsId;
 
+	/** 메인 배너 타입 (팝업·푸터 배너와 구분) */
+	private static final String MAIN_BANNER_TYPE = "MAIN";
+
 	/** 메인 목록에 보여줄 건수 */
 	@Value("${portal.main.previewCount:5}")
 	private int previewCount;
@@ -70,9 +73,21 @@ public class EgovMainApiController {
 		return IntermediateResultVO.success(result);
 	}
 
+	/**
+	 * 메인 화면에 노출할 배너.
+	 *
+	 * <p>배너 테이블에는 메인·팝업·푸터가 함께 들어 있다. 타입을 거르지 않으면
+	 * 팝업 공지와 푸터 배너까지 메인 상단 배너 줄에 나온다.</p>
+	 */
 	private Object loadBanners() throws Exception {
 		BannerVO bannerVO = new BannerVO();
-		return bannerService.selectBannerResult(bannerVO);
+		List<BannerVO> banners = bannerService.selectBannerResult(bannerVO);
+		if (banners == null) {
+			return List.of();
+		}
+		return banners.stream()
+				.filter(banner -> MAIN_BANNER_TYPE.equalsIgnoreCase(banner.getBannerTy()))
+				.toList();
 	}
 
 	private Object loadNotices() throws Exception {

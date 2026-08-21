@@ -200,9 +200,20 @@
          WHERE  BANNER_ID = #{bannerId}
     </delete>
 
-    <select id="selectBannerResult" resultMap="bannerImage">
-        SELECT  BANNER_IMAGE_FILE
+    <!--
+        메인 화면 배너 목록.
+        서버 렌더링 시절에는 이미지를 그리기만 하면 됐으므로 이미지 파일명과 링크만 조회했다.
+        SPA 프론트는 배너를 텍스트 링크로도 표시하므로 식별자·이름·타입을 함께 내려준다
+        (이름이 없으면 화면에 빈 배지만 남는다).
+    -->
+    <select id="selectBannerResult" resultMap="banner">
+        SELECT  BANNER_ID
+              , BANNER_NM
               , LINK_URL
+              , BANNER_IMAGE
+              , BANNER_IMAGE_FILE
+              , BANNER_TY
+              , SORT_ORDR
           FROM  TB_BANNER
          WHERE  REFLCT_AT = 'Y'
          ORDER  BY SORT_ORDR
