@@ -40,6 +40,9 @@ import jakarta.annotation.Resource;
 @Tag(name = "EgovMemberApiController", description = "회원 · 마이페이지")
 public class EgovMemberApiController {
 
+	/** 가입 직후 회원상태. 로그인 쿼리가 이 값만 허용한다. */
+	private static final String MBER_STTUS_NORMAL = "P";
+
 	@Resource(name = "mberManageService")
 	private EgovMberManageService mberManageService;
 
@@ -70,6 +73,9 @@ public class EgovMemberApiController {
 	@Operation(summary = "일반회원 가입", tags = {"EgovMemberApiController"})
 	@PostMapping("/members/join/general")
 	public IntermediateResultVO<Object> joinGeneral(@RequestBody MberManageVO mberManageVO) throws Exception {
+		// 회원상태는 서버가 정한다. 요청 값을 그대로 저장하면 가입자가 자기 상태를 지정할 수 있고,
+		// 비워 두면 null 로 저장돼 로그인 조건(상태 'P')에 걸려 가입한 계정으로 영영 로그인하지 못한다.
+		mberManageVO.setMberSttus(MBER_STTUS_NORMAL);
 		// 가입 시점에는 로그인 사용자가 없다 — 서비스가 고유 ID(uniqId)를 직접 채번한다
 		mberManageService.insertMber(mberManageVO);
 		return IntermediateResultVO.success(null);
@@ -78,6 +84,7 @@ public class EgovMemberApiController {
 	@Operation(summary = "기업회원 가입", tags = {"EgovMemberApiController"})
 	@PostMapping("/members/join/enterprise")
 	public IntermediateResultVO<Object> joinEnterprise(@RequestBody EntrprsMberManageVO vo) throws Exception {
+		vo.setEntrprsMberSttus(MBER_STTUS_NORMAL);
 		entrprsMberManageService.insertEntrprsMber(vo);
 		return IntermediateResultVO.success(null);
 	}
