@@ -86,7 +86,7 @@ public class SecurityConfig {
 	};
 
 	// application.properties 의 Globals.Allow.Origin. 환경별로 콤마 구분 복수 지정 가능.
-	@Value("${Globals.Allow.Origin:http://localhost:5175,http://localhost:5176}")
+	@Value("${Globals.Allow.Origin:http://localhost:13000,http://localhost:13001}")
 	private String allowedOrigins;
 
 	@Bean

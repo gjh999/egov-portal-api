@@ -7,16 +7,26 @@
 
 | 저장소 | 역할 | 개발 포트 |
 |---|---|---|
-| **egov-portal-api** (이 저장소) | REST API | 8081 (`/api`) |
-| [egov-portal-react](https://github.com/gjh999/egov-portal-react) | React 19 프론트 | 5175 |
-| [egov-portal-vue](https://github.com/gjh999/egov-portal-vue) | Vue 3 프론트 | 5176 |
+| **egov-portal-api** (이 저장소) | REST API | 18090 (`/api`) |
+| [egov-portal-react](https://github.com/gjh999/egov-portal-react) | React 19 프론트 | 13000 |
+| [egov-portal-vue](https://github.com/gjh999/egov-portal-vue) | Vue 3 프론트 | 13001 |
 
 두 프론트는 이 백엔드 하나를 함께 사용하며 기능이 서로 대등합니다.
 
 > ⚠️ **이 저장소의 API 를 바꾸면 프론트 두 곳을 함께 고쳐야 합니다.**
 > 계약 내용은 각 프론트 저장소의 `src/api/CONTRACT.md` 에 정리돼 있습니다.
 
+## 화면
+
+### Swagger UI
+
+![Swagger UI](docs/screenshots/01-swagger.png)
+
+> 위 화면은 이 저장소를 실제로 기동해 촬영한 것입니다.
+> 같은 시점의 기능 점검 결과(**18 / 18 통과**)는 [docs/VERIFICATION.md](docs/VERIFICATION.md) 에 있습니다.
+
 ---
+
 
 ## 1. 빠른 시작
 
@@ -31,7 +41,7 @@ mvn spring-boot:run -Dspring-boot.run.jvmArguments="-Dfile.encoding=UTF-8"
 
 **내장 HSQLDB**로 뜨므로 별도 DB 설치가 필요 없습니다.
 
-API 문서(Swagger UI): <http://localhost:8081/api/swagger-ui.html>
+API 문서(Swagger UI): <http://localhost:18090/api/swagger-ui.html>
 
 ### 테스트 계정
 
@@ -150,7 +160,10 @@ GET  /api/auth/me          → 로그인 사용자 + roles (비로그인이면 r
 화면 문구의 원본은 이 저장소의 `src/main/resources/egovframework/message/message-ui_{ko,en}.properties` 입니다.
 `GET /i18n/{lang}` 이 이를 JSON 으로 내려주고, **두 프론트가 같은 번들을 받아 씁니다.**
 
-ko/en 은 **키 집합이 같아야** 합니다 — 백엔드 테스트가 이를 검증합니다.
+ko/en 은 **키 집합이 같아야** 합니다. 한쪽에만 키를 추가하면 다른 언어에서 키 문자열이 그대로 노출됩니다.
+
+> 프론트가 쓰는 화면 문구 키 254 개 중 **251 개(99%)** 가 이 번들에 등록돼 있어
+> 언어 전환이 실제로 동작합니다. 나머지 2 개는 값이 끼어드는 문구(첨부 최대 개수 등)라 프론트 대비값으로 둡니다.
 
 ---
 
@@ -167,9 +180,30 @@ java -jar target/egov-portal-api-5.0.0.jar
 | `EGOV_CRYPTO_KEY` | `egovframe` | 암호화 서비스 키 |
 | `JWT_COOKIE_SECURE` | `false` | HTTPS 배포 시 `true` |
 | `JWT_COOKIE_SAMESITE` | `Lax` | 프론트와 API 의 등록도메인이 다르면 `None` (+ Secure) |
-| `EGOV_ALLOW_ORIGIN` | `localhost:5175,5176` | 실제 프론트 도메인 (와일드카드 금지) |
+| `EGOV_ALLOW_ORIGIN` | `localhost:13000,13001` | 실제 프론트 도메인 (와일드카드 금지) |
 
 프론트와 API 를 **같은 도메인**에 두고 `/api` 를 프록시하면 쿠키 문제가 생기지 않습니다.
+
+### 컨테이너로 실행
+
+`Dockerfile` 과 `k8s/` 매니페스트가 들어 있습니다. 기본 프로필이 내장 HSQLDB 라
+**DB 컨테이너 없이 이 이미지 하나로** 뜹니다.
+
+```bash
+docker build -t egov-portal-api:latest .
+docker run --rm -p 18090:18090 egov-portal-api:latest
+```
+
+세트로 띄우려면 `docker-compose.yml` 을 쓰세요 — 이 백엔드와 프론트 두 개가 함께 뜹니다.
+프론트 저장소를 같은 상위 디렉터리에 clone 해 두어야 합니다.
+
+```bash
+git clone https://github.com/gjh999/egov-portal-api.git
+git clone https://github.com/gjh999/egov-portal-react.git
+git clone https://github.com/gjh999/egov-portal-vue.git
+cd egov-portal-api && docker compose up --build
+# API 18090 · React 13000 · Vue 13001
+```
 
 ### DB 전환
 
@@ -193,7 +227,7 @@ mvn test    # JUnit 15건
 | 권한별 접근 제어 (관리자 API 401), 공개 API 접근 |
 | ko/en 번들 키 정합 — 한쪽에만 키가 있으면 그 화면만 깨진다 |
 
-> 테스트는 랜덤 포트로 앱을 띄웁니다. **8081 에서 개발 서버가 떠 있으면 내장 HSQLDB 파일 락이 충돌해
+> 테스트는 랜덤 포트로 앱을 띄웁니다. **18090 에서 개발 서버가 떠 있으면 내장 HSQLDB 파일 락이 충돌해
 > 500 이 납니다** — 테스트 전에 개발 서버를 내려 주세요.
 
 ---
